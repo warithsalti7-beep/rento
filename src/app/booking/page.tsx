@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { BookingFlow } from "./BookingFlow";
+import { getAllCars } from "@/server/cars";
+import { getAllLocations } from "@/server/locations";
 
 export const metadata: Metadata = {
   title: "Bestill bil",
@@ -11,6 +13,28 @@ export default async function BookingPage(props: PageProps<"/booking">) {
   const carParam = params?.car;
   const initialCarSlug = typeof carParam === "string" ? carParam : undefined;
 
+  const locationParam = params?.location;
+  const initialLocationSlug =
+    typeof locationParam === "string" ? locationParam : undefined;
+
+  const pickupParam = params?.pickup;
+  const initialPickup = typeof pickupParam === "string" ? pickupParam : undefined;
+
+  const dropoffParam = params?.dropoff;
+  const initialDropoff =
+    typeof dropoffParam === "string" ? dropoffParam : undefined;
+
+  const stepParam = params?.step;
+  const stepNum =
+    typeof stepParam === "string" ? Number.parseInt(stepParam, 10) : undefined;
+  const initialStep =
+    stepNum && stepNum >= 1 && stepNum <= 6 ? (stepNum as 1 | 2 | 3 | 4 | 5 | 6) : undefined;
+
+  const [cars, locations] = await Promise.all([
+    getAllCars(),
+    getAllLocations(),
+  ]);
+
   return (
     <section>
       <div className="container-x pt-14 pb-6 md:pt-20">
@@ -18,7 +42,15 @@ export default async function BookingPage(props: PageProps<"/booking">) {
         <h1 className="headline-lg mt-3">Book din bil</h1>
       </div>
       <div className="container-x pb-20">
-        <BookingFlow initialCarSlug={initialCarSlug} />
+        <BookingFlow
+          cars={cars}
+          locations={locations}
+          initialCarSlug={initialCarSlug}
+          initialLocationSlug={initialLocationSlug}
+          initialPickup={initialPickup}
+          initialDropoff={initialDropoff}
+          initialStep={initialStep}
+        />
       </div>
     </section>
   );

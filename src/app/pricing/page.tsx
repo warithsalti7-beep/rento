@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LinkButton } from "@/components/Button";
-import { pricingTiers } from "@/data/pricing";
+import { getPricingTiers } from "@/server/pricing";
 import { formatKrPerMonth } from "@/lib/format";
 
 export const metadata: Metadata = {
@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description:
     "Velg mellom Standard, Plus og Premium. Månedspriser med alt inkludert.",
 };
+
+export const revalidate = 300;
 
 const faqs = [
   {
@@ -28,7 +30,9 @@ const faqs = [
   },
 ];
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const pricingTiers = await getPricingTiers();
+
   return (
     <section>
       <div className="container-x pt-14 pb-6 md:pt-20">
@@ -93,9 +97,7 @@ export default function PricingPage() {
                     <span
                       aria-hidden
                       className={`mt-1 inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${
-                        tier.highlight
-                          ? "bg-white"
-                          : "bg-[color:var(--color-accent)]"
+                        tier.highlight ? "bg-white" : "bg-[color:var(--color-accent)]"
                       }`}
                     />
                     <span>{item}</span>

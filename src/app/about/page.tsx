@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { LinkButton } from "@/components/Button";
-import { locations } from "@/data/locations";
+import { getAllLocations } from "@/server/locations";
 
 export const metadata: Metadata = {
   title: "Om Rento",
   description: "Rento gjør bilutleie enkelt i Norge — og skal bli markedsplassen for leie.",
 };
+
+export const revalidate = 300;
 
 const values = [
   {
@@ -22,7 +24,9 @@ const values = [
   },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const locations = await getAllLocations();
+
   return (
     <section>
       <div className="container-x pt-14 pb-6 md:pt-20">

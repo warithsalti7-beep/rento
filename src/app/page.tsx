@@ -2,9 +2,12 @@ import Link from "next/link";
 import { CarCard } from "@/components/CarCard";
 import { LinkButton } from "@/components/Button";
 import { SearchBar } from "@/components/SearchBar";
-import { cars } from "@/data/cars";
-import { pricingTiers } from "@/data/pricing";
+import { getFeaturedCars } from "@/server/cars";
+import { getAllLocations } from "@/server/locations";
+import { getPricingTiers } from "@/server/pricing";
 import { formatKrPerMonth } from "@/lib/format";
+
+export const revalidate = 60;
 
 const steps = [
   {
@@ -43,22 +46,24 @@ const trust = [
   },
 ];
 
-export default function HomePage() {
-  const featured = cars.slice(0, 4);
+export default async function HomePage() {
+  const [featured, locations, pricingTiers] = await Promise.all([
+    getFeaturedCars(4),
+    getAllLocations(),
+    getPricingTiers(),
+  ]);
 
   return (
     <>
       <section className="relative overflow-hidden">
         <div className="container-x pt-14 pb-10 md:pt-20 md:pb-16">
           <p className="eyebrow">Bilutleie i Norge</p>
-          <h1 className="headline-xl mt-4 max-w-3xl">
-            Lei bil. Enkelt.
-          </h1>
+          <h1 className="headline-xl mt-4 max-w-3xl">Lei bil. Enkelt.</h1>
           <p className="mt-5 max-w-xl text-lg text-[color:var(--color-mute)] md:text-xl">
             Book på sekunder. Vi leverer til deg.
           </p>
           <div className="mt-10">
-            <SearchBar />
+            <SearchBar locations={locations} />
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[color:var(--color-mute)]">
             <span className="inline-flex items-center gap-2">
@@ -97,9 +102,7 @@ export default function HomePage() {
                 <span className="text-sm font-medium text-[color:var(--color-mute)]">
                   {step.number}
                 </span>
-                <h3 className="mt-4 text-xl font-semibold tracking-tight">
-                  {step.title}
-                </h3>
+                <h3 className="mt-4 text-xl font-semibold tracking-tight">{step.title}</h3>
                 <p className="mt-3 text-[color:var(--color-mute)]">{step.body}</p>
               </li>
             ))}
@@ -152,22 +155,14 @@ export default function HomePage() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold tracking-tight">
-                    {tier.name}
-                  </h3>
+                  <h3 className="text-xl font-semibold tracking-tight">{tier.name}</h3>
                   {tier.highlight && (
                     <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
                       Mest valgt
                     </span>
                   )}
                 </div>
-                <p
-                  className={
-                    tier.highlight
-                      ? "text-sm text-white/70"
-                      : "text-sm text-[color:var(--color-mute)]"
-                  }
-                >
+                <p className={tier.highlight ? "text-sm text-white/70" : "text-sm text-[color:var(--color-mute)]"}>
                   {tier.tagline}
                 </p>
                 <div>
@@ -194,9 +189,7 @@ export default function HomePage() {
                       <span
                         aria-hidden
                         className={`mt-1 inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${
-                          tier.highlight
-                            ? "bg-white"
-                            : "bg-[color:var(--color-accent)]"
+                          tier.highlight ? "bg-white" : "bg-[color:var(--color-accent)]"
                         }`}
                       />
                       <span>{item}</span>
@@ -204,7 +197,7 @@ export default function HomePage() {
                   ))}
                 </ul>
                 <LinkButton
-                  href={`/pricing?tier=${tier.id}`}
+                  href={`/pricing?tier=${tier.slug}`}
                   variant={tier.highlight ? "secondary" : "primary"}
                   className="mt-auto"
                 >
@@ -245,7 +238,12 @@ export default function HomePage() {
             <LinkButton href="/cars" variant="secondary" size="lg">
               Se biler
             </LinkButton>
-            <LinkButton href="/how-it-works" variant="ghost" size="lg" className="text-white hover:bg-white/10">
+            <LinkButton
+              href="/how-it-works"
+              variant="ghost"
+              size="lg"
+              className="text-white hover:bg-white/10"
+            >
               Slik fungerer det
             </LinkButton>
           </div>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Car, CarCategory } from "@/data/cars";
-import { categories } from "@/data/cars";
+import type { CarCategory } from "@prisma/client";
+import type { CarListItem } from "@/lib/types";
+import { allCategories, carCategoryLabel } from "@/lib/types";
 import { CarCard } from "@/components/CarCard";
 
 type SortKey = "price-asc" | "price-desc" | "recommended";
@@ -13,12 +14,13 @@ const sortOptions: Array<{ value: SortKey; label: string }> = [
   { value: "price-desc", label: "Pris: høy til lav" },
 ];
 
-export function CarFilters({ cars }: { cars: Car[] }) {
+export function CarFilters({ cars }: { cars: CarListItem[] }) {
   const [selected, setSelected] = useState<CarCategory | "alle">("alle");
   const [sort, setSort] = useState<SortKey>("recommended");
 
   const filtered = useMemo(() => {
-    const list = selected === "alle" ? cars : cars.filter((c) => c.category === selected);
+    const list =
+      selected === "alle" ? cars : cars.filter((c) => c.category === selected);
     if (sort === "price-asc") return [...list].sort((a, b) => a.pricePerDay - b.pricePerDay);
     if (sort === "price-desc") return [...list].sort((a, b) => b.pricePerDay - a.pricePerDay);
     return list;
@@ -28,19 +30,16 @@ export function CarFilters({ cars }: { cars: Car[] }) {
     <div className="mt-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap gap-2">
-          <FilterPill
-            active={selected === "alle"}
-            onClick={() => setSelected("alle")}
-          >
+          <FilterPill active={selected === "alle"} onClick={() => setSelected("alle")}>
             Alle
           </FilterPill>
-          {categories.map((cat) => (
+          {allCategories.map((cat) => (
             <FilterPill
               key={cat}
               active={selected === cat}
               onClick={() => setSelected(cat)}
             >
-              {cat}
+              {carCategoryLabel[cat]}
             </FilterPill>
           ))}
         </div>

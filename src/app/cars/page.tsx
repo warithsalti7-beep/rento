@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cars } from "@/data/cars";
+import { getAllCars } from "@/server/cars";
 import { CarFilters } from "./CarFilters";
 
 export const metadata: Metadata = {
@@ -8,7 +8,11 @@ export const metadata: Metadata = {
     "Se hele utvalget av biler – elbiler, hybrider, varebiler og SUV-er. Lei per dag eller per måned.",
 };
 
-export default function CarsPage() {
+export const revalidate = 60;
+
+export default async function CarsPage() {
+  const cars = await getAllCars();
+
   return (
     <section>
       <div className="container-x pt-14 pb-6 md:pt-20">

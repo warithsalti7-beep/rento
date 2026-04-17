@@ -1,8 +1,13 @@
 import Link from "next/link";
-import type { Car } from "@/data/cars";
+import type { CarListItem } from "@/lib/types";
+import {
+  carCategoryLabel,
+  fuelLabel,
+  transmissionLabel,
+} from "@/lib/types";
 import { formatKrPerDay, formatKrPerMonth } from "@/lib/format";
 
-export function CarCard({ car }: { car: Car }) {
+export function CarCard({ car }: { car: CarListItem }) {
   return (
     <Link
       href={`/cars/${car.slug}`}
@@ -17,7 +22,7 @@ export function CarCard({ car }: { car: Car }) {
           loading="lazy"
         />
         <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-[color:var(--color-ink)]">
-          {car.category}
+          {carCategoryLabel[car.category]}
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-5 p-5">
@@ -27,7 +32,7 @@ export function CarCard({ car }: { car: Car }) {
             {car.model}
           </h3>
           <p className="mt-2 text-sm text-[color:var(--color-mute)]">
-            {car.seats} seter · {car.transmission} · {car.fuel}
+            {car.seats} seter · {transmissionLabel[car.transmission]} · {fuelLabel[car.fuel]}
           </p>
         </div>
         <div className="mt-auto flex items-end justify-between">

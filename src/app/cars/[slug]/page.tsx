@@ -2,18 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LinkButton } from "@/components/Button";
-import { cars, findCar } from "@/data/cars";
+import { getCarBySlug } from "@/server/cars";
+import { carCategoryLabel, fuelLabel, transmissionLabel } from "@/lib/types";
 import { formatKrPerDay, formatKrPerMonth } from "@/lib/format";
-
-export function generateStaticParams() {
-  return cars.map((car) => ({ slug: car.slug }));
-}
 
 export async function generateMetadata(
   props: PageProps<"/cars/[slug]">,
 ): Promise<Metadata> {
   const { slug } = await props.params;
-  const car = findCar(slug);
+  const car = await getCarBySlug(slug);
   if (!car) return { title: "Bil ikke funnet" };
   return {
     title: `${car.brand} ${car.model}`,
@@ -25,14 +22,14 @@ export default async function CarDetailPage(
   props: PageProps<"/cars/[slug]">,
 ) {
   const { slug } = await props.params;
-  const car = findCar(slug);
+  const car = await getCarBySlug(slug);
   if (!car) notFound();
 
   const specs: Array<{ label: string; value: string }> = [
     { label: "Seter", value: `${car.seats}` },
     { label: "Dører", value: `${car.doors}` },
-    { label: "Girkasse", value: car.transmission },
-    { label: "Drivstoff", value: car.fuel },
+    { label: "Girkasse", value: transmissionLabel[car.transmission] },
+    { label: "Drivstoff", value: fuelLabel[car.fuel] },
     { label: "Bagasje", value: `${car.luggage} kofferter` },
     { label: "Rekkevidde", value: car.range },
   ];
@@ -62,7 +59,9 @@ export default async function CarDetailPage(
 
           <aside className="flex flex-col gap-8">
             <div>
-              <p className="text-sm text-[color:var(--color-mute)]">{car.category}</p>
+              <p className="text-sm text-[color:var(--color-mute)]">
+                {carCategoryLabel[car.category]}
+              </p>
               <h1 className="headline-lg mt-2">
                 {car.brand} {car.model}
               </h1>
