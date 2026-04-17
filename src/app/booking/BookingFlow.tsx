@@ -57,6 +57,7 @@ export function BookingFlow({
   initialPickup,
   initialDropoff,
   initialStep,
+  paymentProvider = "stripe",
 }: {
   locations: LocationListItem[];
   initialCarSlug?: string;
@@ -64,6 +65,7 @@ export function BookingFlow({
   initialPickup?: string;
   initialDropoff?: string;
   initialStep?: Step;
+  paymentProvider?: "vipps" | "stripe";
 }) {
   const defaultLocSlug = initialLocationSlug ?? locations[0]?.slug ?? "";
   const [step, setStep] = useState<Step>(
@@ -335,6 +337,11 @@ export function BookingFlow({
                             {transmissionLabel[car.transmission]} ·{" "}
                             {fuelLabel[car.fuel]}
                           </p>
+                          {car.location && car.locationMatchesRequest === false && (
+                            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[color:var(--color-accent-soft)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--color-accent)]">
+                              Leveres fra {car.location.city}
+                            </p>
+                          )}
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-semibold">
@@ -442,14 +449,20 @@ export function BookingFlow({
               </dl>
             </div>
 
-            <div className="mt-6 flex items-center justify-center gap-5 text-xs text-[color:var(--color-mute)]">
-              <span>Vipps</span>
-              <span aria-hidden>·</span>
-              <span>Visa</span>
-              <span aria-hidden>·</span>
-              <span>Mastercard</span>
-              <span aria-hidden>·</span>
-              <span>256-bit kryptering</span>
+            <div className="mt-6 rounded-2xl border border-[color:var(--color-line)] bg-[color:var(--color-fog)] p-4 text-sm">
+              <p className="font-medium text-[color:var(--color-ink)]">
+                Du blir sendt til{" "}
+                {paymentProvider === "vipps" ? "Vipps" : "Stripe"} for å betale
+              </p>
+              <p className="mt-1 text-xs text-[color:var(--color-mute)]">
+                256-bit kryptering · Vi lagrer aldri kortinfoen din
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[color:var(--color-mute)]">
+                {paymentProvider === "vipps" && <Badge>Vipps</Badge>}
+                <Badge>Visa</Badge>
+                <Badge>Mastercard</Badge>
+                {paymentProvider === "stripe" && <Badge>Stripe</Badge>}
+              </div>
             </div>
 
             {error && (
@@ -461,7 +474,9 @@ export function BookingFlow({
             <div className="mt-8 flex items-center justify-between gap-4">
               <BackButton onClick={() => goTo(3)} disabled={submitting} />
               <PrimaryButton disabled={submitting}>
-                {submitting ? "Sender …" : `Betal ${formatKr(total)}`}
+                {submitting
+                  ? "Sender …"
+                  : `Betal med ${paymentProvider === "vipps" ? "Vipps" : "kort"} — ${formatKr(total)}`}
               </PrimaryButton>
             </div>
           </form>
@@ -558,6 +573,14 @@ function BackButton({
     >
       {label}
     </button>
+  );
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-[color:var(--color-line)] bg-white px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-ink)]">
+      {children}
+    </span>
   );
 }
 

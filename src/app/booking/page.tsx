@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BookingFlow } from "./BookingFlow";
 import { getAllLocations } from "@/server/locations";
+import { isVippsEnabled } from "@/lib/vipps";
 
 export const metadata: Metadata = {
   title: "Bestill bil",
@@ -49,6 +50,7 @@ export default async function BookingPage(props: BookingPageProps) {
           initialPickup={initialPickup}
           initialDropoff={initialDropoff}
           initialStep={initialStep}
+          paymentProvider={isVippsEnabled() ? "vipps" : "stripe"}
         />
       </div>
     </section>

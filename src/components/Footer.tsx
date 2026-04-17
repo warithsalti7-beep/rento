@@ -68,9 +68,15 @@ export function Footer() {
               : ""}
           </p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span>Vipps · Visa · Mastercard</span>
-            <span aria-hidden>·</span>
-            <span>BankID-verifisert</span>
+            <span>
+              {process.env.VIPPS_CLIENT_ID ? "Vipps · " : ""}Visa · Mastercard
+            </span>
+            {process.env.BANKID_ENABLED === "true" && (
+              <>
+                <span aria-hidden>·</span>
+                <span>BankID-verifisert</span>
+              </>
+            )}
             <span aria-hidden>·</span>
             <span>Laget i Norge</span>
           </div>

@@ -63,8 +63,19 @@ export default async function AccountPage() {
         </div>
 
         {bookings.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-dashed border-[color:var(--color-line)] p-10 text-center text-[color:var(--color-mute)]">
-            Du har ingen bestillinger ennå.
+          <div className="mt-10 rounded-2xl border border-dashed border-[color:var(--color-line)] bg-[color:var(--color-fog)] p-10 text-center">
+            <h3 className="headline-md">Klar for første tur?</h3>
+            <p className="mt-3 text-[color:var(--color-mute)]">
+              Du har ingen bestillinger ennå. Vi har elbiler, hybrider og varebiler klare til levering.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <LinkButton href="/cars" size="lg">
+                Book din første tur →
+              </LinkButton>
+              <LinkButton href="/how-it-works" variant="secondary" size="lg">
+                Slik fungerer det
+              </LinkButton>
+            </div>
           </div>
         ) : (
           <ul className="mt-8 grid gap-4">

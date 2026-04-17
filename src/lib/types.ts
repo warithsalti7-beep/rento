@@ -52,6 +52,8 @@ export type CarListItem = {
   summary: string;
   pricePerDay: number;
   pricePerMonth: number;
+  location?: { slug: string; city: string } | null;
+  locationMatchesRequest?: boolean;
 };
 
 export type LocationListItem = {

@@ -304,7 +304,82 @@ async function main() {
   });
   console.log(`  ✓ admin user (${admin.email})`);
 
+  // ─────────────────── Test bookings ───────────────────
+  // Creates a couple of overlapping bookings so the availability engine
+  // is provable: pick the same dates in the booking flow and these cars
+  // should disappear.
+  const teslaY = await prisma.car.findUnique({ where: { slug: "tesla-model-y" } });
+  const volvoXC60 = await prisma.car.findUnique({ where: { slug: "volvo-xc60" } });
+  const oslo = await prisma.location.findUnique({ where: { slug: "oslo-sentrum" } });
+  const bergen = await prisma.location.findUnique({ where: { slug: "bergen" } });
+
+  if (teslaY && oslo) {
+    const existing = await prisma.booking.findFirst({
+      where: { carId: teslaY.id, reference: "RE-DEMO01" },
+    });
+    if (!existing) {
+      const start = addDays(new Date(), 3);
+      const end = addDays(new Date(), 7);
+      const days = 4;
+      await prisma.booking.create({
+        data: {
+          reference: "RE-DEMO01",
+          carId: teslaY.id,
+          pickupLocationId: oslo.id,
+          dropoffLocationId: oslo.id,
+          pickupAt: start,
+          dropoffAt: end,
+          days,
+          subtotal: teslaY.pricePerDay * days,
+          total: teslaY.pricePerDay * days,
+          status: "PAID",
+          payment: "CAPTURED",
+          guestName: "Kari Demo",
+          guestEmail: "demo@rentobil.no",
+          guestPhone: "+47 000 00 000",
+        },
+      });
+      console.log("  ✓ demo booking: Tesla Model Y in Oslo (next 3-7 days)");
+    }
+  }
+
+  if (volvoXC60 && bergen) {
+    const existing = await prisma.booking.findFirst({
+      where: { carId: volvoXC60.id, reference: "RE-DEMO02" },
+    });
+    if (!existing) {
+      const start = addDays(new Date(), 10);
+      const end = addDays(new Date(), 14);
+      const days = 4;
+      await prisma.booking.create({
+        data: {
+          reference: "RE-DEMO02",
+          carId: volvoXC60.id,
+          pickupLocationId: bergen.id,
+          dropoffLocationId: bergen.id,
+          pickupAt: start,
+          dropoffAt: end,
+          days,
+          subtotal: volvoXC60.pricePerDay * days,
+          total: volvoXC60.pricePerDay * days,
+          status: "CONFIRMED",
+          payment: "AUTHORIZED",
+          guestName: "Ola Demo",
+          guestEmail: "demo2@rentobil.no",
+          guestPhone: "+47 000 00 001",
+        },
+      });
+      console.log("  ✓ demo booking: Volvo XC60 in Bergen (next 10-14 days)");
+    }
+  }
+
   console.log("Done.");
+}
+
+function addDays(base: Date, days: number): Date {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d;
 }
 
 main()
