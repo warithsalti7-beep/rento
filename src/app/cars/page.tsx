@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "Se hele utvalget av biler – elbiler, hybrider, varebiler og SUV-er. Lei per dag eller per måned.",
 };
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export default async function CarsPage() {
   const cars = await getAllCars();

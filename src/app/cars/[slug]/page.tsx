@@ -6,8 +6,10 @@ import { getCarBySlug } from "@/server/cars";
 import { carCategoryLabel, fuelLabel, transmissionLabel } from "@/lib/types";
 import { formatKrPerDay, formatKrPerMonth } from "@/lib/format";
 
+type CarDetailProps = { params: Promise<{ slug: string }> };
+
 export async function generateMetadata(
-  props: PageProps<"/cars/[slug]">,
+  props: CarDetailProps,
 ): Promise<Metadata> {
   const { slug } = await props.params;
   const car = await getCarBySlug(slug);
@@ -18,9 +20,7 @@ export async function generateMetadata(
   };
 }
 
-export default async function CarDetailPage(
-  props: PageProps<"/cars/[slug]">,
-) {
+export default async function CarDetailPage(props: CarDetailProps) {
   const { slug } = await props.params;
   const car = await getCarBySlug(slug);
   if (!car) notFound();

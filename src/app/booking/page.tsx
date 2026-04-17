@@ -8,7 +8,11 @@ export const metadata: Metadata = {
   description: "Fullfør bestillingen din i få steg.",
 };
 
-export default async function BookingPage(props: PageProps<"/booking">) {
+type BookingPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function BookingPage(props: BookingPageProps) {
   const params = await props.searchParams;
   const carParam = params?.car;
   const initialCarSlug = typeof carParam === "string" ? carParam : undefined;

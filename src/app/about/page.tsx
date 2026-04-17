@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "Rento gjør bilutleie enkelt i Norge — og skal bli markedsplassen for leie.",
 };
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 const values = [
   {

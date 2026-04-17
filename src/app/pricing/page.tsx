@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Velg mellom Standard, Plus og Premium. Månedspriser med alt inkludert.",
 };
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 const faqs = [
   {

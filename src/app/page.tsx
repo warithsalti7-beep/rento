@@ -7,7 +7,7 @@ import { getAllLocations } from "@/server/locations";
 import { getPricingTiers } from "@/server/pricing";
 import { formatKrPerMonth } from "@/lib/format";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 const steps = [
   {

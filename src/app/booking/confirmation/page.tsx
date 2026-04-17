@@ -7,9 +7,11 @@ export const metadata: Metadata = {
   title: "Bekreftelse",
 };
 
-export default async function ConfirmationPage(
-  props: PageProps<"/booking/confirmation">,
-) {
+type ConfirmationProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function ConfirmationPage(props: ConfirmationProps) {
   const params = await props.searchParams;
   const reference =
     typeof params?.reference === "string" ? params.reference : undefined;
