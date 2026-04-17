@@ -7,6 +7,7 @@ import {
   transmissionLabel,
 } from "@/lib/types";
 import { updateCar } from "../../actions";
+import { CarImageUpload } from "./CarImageUpload";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,12 @@ export default async function AdminCarEditPage(props: Props) {
         <Input name="doors" label="Dører" type="number" defaultValue={String(car.doors)} />
         <Input name="luggage" label="Bagasje" type="number" defaultValue={String(car.luggage)} />
         <Input name="range" label="Rekkevidde" defaultValue={car.range} />
-        <Input name="image" label="Bilde-URL" defaultValue={car.image} />
+        <div className="sm:col-span-2">
+          <span className="mb-2 block text-xs font-medium uppercase tracking-wider text-[color:var(--color-mute)]">
+            Hovedbilde
+          </span>
+          <CarImageUpload carId={car.id} currentUrl={car.image} />
+        </div>
         <Input name="pricePerDay" label="Pris per dag (kr)" type="number" defaultValue={String(car.pricePerDay)} required />
         <Input name="pricePerMonth" label="Pris per måned (kr)" type="number" defaultValue={String(car.pricePerMonth)} required />
         <Select

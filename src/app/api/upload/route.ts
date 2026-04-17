@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
 export async function POST(req: Request) {
   const body = (await req.json()) as HandleUploadBody;
@@ -10,20 +11,30 @@ export async function POST(req: Request) {
       body,
       request: req,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        // clientPayload should contain bookingId + document type
-        let parsed: { bookingId?: string; type?: string } = {};
+        let parsed: { bookingId?: string; carId?: string; kind?: string; type?: string } = {};
         try {
           parsed = JSON.parse(clientPayload ?? "{}");
         } catch {
           // ignore
         }
-        if (!parsed.bookingId) {
-          throw new Error("Mangler bookingId");
+
+        // CAR_IMAGE uploads require ADMIN.
+        if (parsed.kind === "CAR_IMAGE") {
+          const session = await auth();
+          if (!session?.user || session.user.role !== "ADMIN") {
+            throw new Error("Ingen tilgang");
+          }
+          if (!parsed.carId) throw new Error("Mangler carId");
+          const car = await prisma.car.findUnique({ where: { id: parsed.carId } });
+          if (!car) throw new Error("Ukjent bil");
+        } else {
+          // Booking document upload.
+          if (!parsed.bookingId) throw new Error("Mangler bookingId");
+          const booking = await prisma.booking.findUnique({
+            where: { id: parsed.bookingId },
+          });
+          if (!booking) throw new Error("Ukjent booking");
         }
-        const booking = await prisma.booking.findUnique({
-          where: { id: parsed.bookingId },
-        });
-        if (!booking) throw new Error("Ukjent booking");
 
         return {
           allowedContentTypes: [
@@ -34,8 +45,8 @@ export async function POST(req: Request) {
             "application/pdf",
           ],
           tokenPayload: clientPayload,
-          maximumSizeInBytes: 15 * 1024 * 1024, // 15MB
-          validUntil: Date.now() + 60 * 60 * 1000, // 1h
+          maximumSizeInBytes: 15 * 1024 * 1024,
+          validUntil: Date.now() + 60 * 60 * 1000,
           addRandomSuffix: true,
           pathname,
         };
@@ -44,8 +55,19 @@ export async function POST(req: Request) {
         try {
           const parsed = JSON.parse(tokenPayload ?? "{}") as {
             bookingId?: string;
+            carId?: string;
+            kind?: string;
             type?: "FOERERKORT" | "ID_FRONT" | "ID_BACK" | "SELFIE";
           };
+
+          if (parsed.kind === "CAR_IMAGE" && parsed.carId) {
+            await prisma.car.update({
+              where: { id: parsed.carId },
+              data: { image: blob.url },
+            });
+            return;
+          }
+
           if (parsed.bookingId && parsed.type) {
             await prisma.document.create({
               data: {
@@ -63,7 +85,7 @@ export async function POST(req: Request) {
             });
           }
         } catch (err) {
-          console.error("Failed to persist uploaded document:", err);
+          console.error("Failed to persist uploaded file:", err);
         }
       },
     });
