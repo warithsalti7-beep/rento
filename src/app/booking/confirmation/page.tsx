@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LinkButton } from "@/components/Button";
 import { getBookingByReference } from "@/server/bookings";
-import { formatKr } from "@/lib/format";
+import { formatDate, formatKr } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Bekreftelse",
@@ -17,19 +17,35 @@ export default async function ConfirmationPage(props: ConfirmationProps) {
     typeof params?.reference === "string" ? params.reference : undefined;
 
   const booking = reference ? await getBookingByReference(reference) : null;
+  const paid = booking?.status === "PAID" || booking?.status === "CONFIRMED";
+  const pending = booking?.status === "PENDING";
+
+  const heading = paid
+    ? "Bestilling bekreftet"
+    : pending
+      ? "Bestilling mottatt"
+      : "Bestilling bekreftet";
+  const subhead = paid
+    ? "Vi har sendt bekreftelsen på e-post."
+    : pending
+      ? "Vi bekrefter betalingen innen et par minutter og sender deg en e-post så snart den er på plass."
+      : "Vi har sendt bekreftelsen på e-post.";
 
   return (
     <section>
       <div className="container-x pt-14 pb-6 md:pt-20">
         <div className="mx-auto max-w-2xl">
           <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]">
-            ✓
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+              <path d="M4 10.5l4 4 8-9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </span>
-          <h1 className="headline-lg mt-5">Bestilling bekreftet</h1>
+          <h1 className="headline-lg mt-5">{heading}</h1>
           <p className="mt-3 text-[color:var(--color-mute)]">
             Takk
             {booking?.guestName ? `, ${booking.guestName.split(" ")[0]}` : ""}.
-            Vi har sendt bekreftelsen på e-post.
+            {" "}
+            {subhead}
           </p>
 
           {booking ? (
@@ -42,11 +58,11 @@ export default async function ConfirmationPage(props: ConfirmationProps) {
               <Row label="Hentested" value={booking.pickupLocation.city} />
               <Row
                 label="Hentedato"
-                value={booking.pickupAt.toISOString().slice(0, 10)}
+                value={formatDate(booking.pickupAt)}
               />
               <Row
                 label="Levering"
-                value={booking.dropoffAt.toISOString().slice(0, 10)}
+                value={formatDate(booking.dropoffAt)}
               />
               <Row
                 label="Varighet"

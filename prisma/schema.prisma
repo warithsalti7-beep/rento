@@ -38,6 +38,13 @@ enum CarStatus {
   ARCHIVED
 }
 
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
 enum CarOwnerType {
   FLEET
   PRIVATE
@@ -49,6 +56,13 @@ enum BookingStatus {
   PAID
   CANCELLED
   COMPLETED
+}
+
+enum DocumentType {
+  FOERERKORT
+  ID_FRONT
+  ID_BACK
+  SELFIE
 }
 
 enum PaymentStatus {
@@ -159,6 +173,10 @@ model Car {
   locationId     String?
   location       Location?     @relation(fields: [locationId], references: [id])
 
+  listingStatus      ListingStatus @default(APPROVED)
+  instantBook        Boolean       @default(true)
+  cancellationPolicy String?
+
   bookings       Booking[]
   availability   Availability[]
   reviews        Review[]
@@ -168,6 +186,7 @@ model Car {
 
   @@index([category])
   @@index([status])
+  @@index([listingStatus])
 }
 
 // Explicit blocked ranges (maintenance, owner holds). Bookings themselves also block availability.
@@ -218,15 +237,45 @@ model Booking {
   payment            PaymentStatus @default(UNPAID)
   stripeSessionId    String?
   stripePaymentId    String?
+  vippsOrderId       String?
+  priceBreakdown     Json?
   guestName          String?
   guestEmail         String?
   guestPhone         String?
   notes              String?
+  documents          Document[]
+  events             BookingEvent[]
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
   @@index([carId, pickupAt, dropoffAt])
   @@index([status])
+}
+
+model Document {
+  id         String       @id @default(cuid())
+  bookingId  String
+  booking    Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  userId     String?
+  type       DocumentType
+  url        String
+  verified   Boolean      @default(false)
+  verifiedAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([bookingId])
+}
+
+model BookingEvent {
+  id        String   @id @default(cuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  type      String   // e.g. "STATUS_CHANGED", "PAYMENT_CAPTURED", "DOCUMENT_VERIFIED"
+  payload   Json?
+  actorId   String?  // userId of who triggered, if any
+  createdAt DateTime @default(now())
+
+  @@index([bookingId, createdAt])
 }
 
 model Review {

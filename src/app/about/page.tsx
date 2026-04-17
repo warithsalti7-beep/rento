@@ -98,7 +98,9 @@ export default async function AboutPage() {
 
       <div className="container-x py-16">
         <p className="eyebrow">Lokasjoner</p>
-        <h2 className="headline-md mt-3">Vi finnes i seks byer</h2>
+        <h2 className="headline-md mt-3">
+          Vi finnes på {locations.length} hentesteder
+        </h2>
         <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {locations.map((loc) => (
             <li

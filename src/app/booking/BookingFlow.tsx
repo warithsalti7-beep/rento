@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CarListItem, LocationListItem } from "@/lib/types";
 import {
   carCategoryLabel,
@@ -9,22 +9,27 @@ import {
   transmissionLabel,
 } from "@/lib/types";
 import { formatKr, formatKrPerDay } from "@/lib/format";
+import { TrustRow } from "@/components/TrustRow";
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6;
+type Step = 1 | 2 | 3 | 4;
 
 const stepLabels: Record<Step, string> = {
   1: "Sted og dato",
-  2: "Se biler",
-  3: "Velg bil",
-  4: "Bekreft",
-  5: "Betaling",
-  6: "Bekreftelse",
+  2: "Velg bil",
+  3: "Om deg",
+  4: "Betaling",
 };
+
+const STORAGE_KEY = "rento.booking.v1";
 
 function todayPlus(days: number) {
   const date = new Date();
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function daysBetween(start: string, end: string) {
@@ -34,8 +39,18 @@ function daysBetween(start: string, end: string) {
   return Math.max(1, diff);
 }
 
+function isPickupValid(pickup: string, dropoff: string): string | null {
+  if (!pickup || !dropoff) return "Velg hente- og leveringsdato";
+  const p = new Date(pickup);
+  const d = new Date(dropoff);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (p < today) return "Hentedato kan ikke være i fortiden";
+  if (d <= p) return "Leveringsdato må være etter hentedato";
+  return null;
+}
+
 export function BookingFlow({
-  cars,
   locations,
   initialCarSlug,
   initialLocationSlug,
@@ -43,7 +58,6 @@ export function BookingFlow({
   initialDropoff,
   initialStep,
 }: {
-  cars: CarListItem[];
   locations: LocationListItem[];
   initialCarSlug?: string;
   initialLocationSlug?: string;
@@ -53,7 +67,7 @@ export function BookingFlow({
 }) {
   const defaultLocSlug = initialLocationSlug ?? locations[0]?.slug ?? "";
   const [step, setStep] = useState<Step>(
-    initialStep ?? (initialCarSlug ? 4 : 1),
+    initialStep ?? (initialCarSlug ? 3 : 1),
   );
   const [locationSlug, setLocationSlug] = useState(defaultLocSlug);
   const [pickup, setPickup] = useState(initialPickup ?? todayPlus(2));
@@ -67,9 +81,50 @@ export function BookingFlow({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [availableCars, setAvailableCars] = useState<CarListItem[] | null>(null);
+  const [loadingCars, setLoadingCars] = useState(false);
+
+  // Restore form state from localStorage on mount (guards against refresh).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as Partial<{
+        locationSlug: string;
+        pickup: string;
+        dropoff: string;
+        selectedSlug: string;
+        name: string;
+        email: string;
+        phone: string;
+      }>;
+      if (!initialCarSlug && saved.selectedSlug) setSelectedSlug(saved.selectedSlug);
+      if (!initialLocationSlug && saved.locationSlug) setLocationSlug(saved.locationSlug);
+      if (!initialPickup && saved.pickup) setPickup(saved.pickup);
+      if (!initialDropoff && saved.dropoff) setDropoff(saved.dropoff);
+      if (saved.name) setName(saved.name);
+      if (saved.email) setEmail(saved.email);
+      if (saved.phone) setPhone(saved.phone);
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist on change.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ locationSlug, pickup, dropoff, selectedSlug, name, email, phone }),
+    );
+  }, [locationSlug, pickup, dropoff, selectedSlug, name, email, phone]);
+
   const selectedCar: CarListItem | undefined = useMemo(
-    () => cars.find((c) => c.slug === selectedSlug),
-    [cars, selectedSlug],
+    () =>
+      (availableCars ?? []).find((c) => c.slug === selectedSlug) ?? undefined,
+    [availableCars, selectedSlug],
   );
   const selectedLocation: LocationListItem | undefined = useMemo(
     () => locations.find((l) => l.slug === locationSlug),
@@ -85,6 +140,27 @@ export function BookingFlow({
     setStep(next);
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
+  async function loadAvailable() {
+    setLoadingCars(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        pickup: new Date(pickup).toISOString(),
+        dropoff: new Date(dropoff).toISOString(),
+        location: locationSlug,
+      });
+      const res = await fetch(`/api/cars/available?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Kunne ikke laste biler");
+      setAvailableCars(data);
+      goTo(2);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Noe gikk galt");
+    } finally {
+      setLoadingCars(false);
     }
   }
 
@@ -110,6 +186,8 @@ export function BookingFlow({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Bestillingen feilet");
 
+      window.localStorage.removeItem(STORAGE_KEY);
+
       const checkoutRes = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -123,14 +201,14 @@ export function BookingFlow({
           return;
         }
       }
-
-      // If Stripe is not configured, skip straight to confirmation.
       window.location.href = `/booking/confirmation?reference=${data.reference}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Noe gikk galt");
       setSubmitting(false);
     }
   }
+
+  const dateError = isPickupValid(pickup, dropoff);
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr]">
@@ -161,6 +239,7 @@ export function BookingFlow({
                 <input
                   type="date"
                   value={pickup}
+                  min={todayIso()}
                   onChange={(e) => setPickup(e.target.value)}
                   className="input"
                 />
@@ -169,67 +248,108 @@ export function BookingFlow({
                 <input
                   type="date"
                   value={dropoff}
+                  min={pickup || todayIso()}
                   onChange={(e) => setDropoff(e.target.value)}
                   className="input"
                 />
               </Field>
             </div>
+            {dateError && (
+              <p className="mt-4 text-sm text-red-700">{dateError}</p>
+            )}
+            {error && (
+              <p className="mt-4 text-sm text-red-700">{error}</p>
+            )}
             <div className="mt-8 flex items-center justify-end">
-              <PrimaryButton onClick={() => goTo(2)}>Se biler</PrimaryButton>
+              <PrimaryButton
+                onClick={loadAvailable}
+                disabled={Boolean(dateError) || loadingCars}
+              >
+                {loadingCars ? "Laster …" : "Se ledige biler"}
+              </PrimaryButton>
+            </div>
+            <div className="mt-6">
+              <TrustRow />
             </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="mt-10">
-            <h2 className="headline-md">Tilgjengelige biler</h2>
+            <h2 className="headline-md">
+              {availableCars?.length ?? 0} biler ledig
+            </h2>
             <p className="mt-2 text-[color:var(--color-mute)]">
               {days} {days === 1 ? "dag" : "dager"} ·{" "}
               {selectedLocation?.city ?? locationSlug}
             </p>
-            <ul className="mt-8 grid gap-4">
-              {cars.map((car) => (
-                <li key={car.slug}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedSlug(car.slug);
-                      goTo(3);
-                    }}
-                    className="flex w-full items-center gap-5 rounded-2xl border border-[color:var(--color-line)] bg-white p-4 text-left transition-colors hover:border-[color:var(--color-ink)]"
-                  >
-                    <div className="h-20 w-28 overflow-hidden rounded-xl bg-[color:var(--color-fog)]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={car.image}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-[color:var(--color-mute)]">
-                        {carCategoryLabel[car.category]}
-                      </p>
-                      <p className="mt-0.5 text-base font-semibold">
-                        {car.brand} {car.model}
-                      </p>
-                      <p className="mt-1 text-xs text-[color:var(--color-mute)]">
-                        {car.seats} seter · {transmissionLabel[car.transmission]} ·{" "}
-                        {fuelLabel[car.fuel]}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold">
-                        {formatKrPerDay(car.pricePerDay)}
-                      </p>
-                      <p className="text-xs text-[color:var(--color-mute)]">
-                        {formatKr(car.pricePerDay * days)} totalt
-                      </p>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {availableCars && availableCars.length === 0 ? (
+              <div className="mt-8 rounded-2xl border border-dashed border-[color:var(--color-line)] p-10 text-center">
+                <p className="font-semibold">Ingen biler ledig disse datoene</p>
+                <p className="mt-2 text-sm text-[color:var(--color-mute)]">
+                  Prøv andre datoer eller et annet sted.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => goTo(1)}
+                  className="mt-5 rounded-full bg-[color:var(--color-ink)] px-5 py-2 text-sm font-medium text-white"
+                >
+                  Endre søket
+                </button>
+              </div>
+            ) : (
+              <ul className="mt-8 grid gap-4">
+                {(availableCars ?? []).map((car) => {
+                  const isSelected = selectedSlug === car.slug;
+                  return (
+                    <li key={car.slug}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSlug(car.slug);
+                          goTo(3);
+                        }}
+                        className={`flex w-full items-center gap-5 rounded-2xl border bg-white p-4 text-left transition-colors ${
+                          isSelected
+                            ? "border-[color:var(--color-ink)]"
+                            : "border-[color:var(--color-line)] hover:border-[color:var(--color-ink)]"
+                        }`}
+                      >
+                        <div className="h-20 w-28 overflow-hidden rounded-xl bg-[color:var(--color-fog)]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={car.image}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-[color:var(--color-mute)]">
+                            {carCategoryLabel[car.category]}
+                          </p>
+                          <p className="mt-0.5 text-base font-semibold">
+                            {car.brand} {car.model}
+                          </p>
+                          <p className="mt-1 text-xs text-[color:var(--color-mute)]">
+                            {car.seats} seter ·{" "}
+                            {transmissionLabel[car.transmission]} ·{" "}
+                            {fuelLabel[car.fuel]}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold">
+                            {formatKrPerDay(car.pricePerDay)}
+                          </p>
+                          <p className="text-xs text-[color:var(--color-mute)]">
+                            {formatKr(car.pricePerDay * days)} totalt
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
             <div className="mt-8">
               <BackButton onClick={() => goTo(1)} />
             </div>
@@ -237,48 +357,16 @@ export function BookingFlow({
         )}
 
         {step === 3 && selectedCar && (
-          <div className="mt-10">
-            <h2 className="headline-md">Din bil</h2>
-            <p className="mt-2 text-[color:var(--color-mute)]">
-              Dobbeltsjekk at dette er riktig bil før du går videre.
-            </p>
-            <div className="mt-8 overflow-hidden rounded-2xl border border-[color:var(--color-line)] bg-white">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={selectedCar.image}
-                alt=""
-                className="aspect-[16/9] w-full object-cover"
-              />
-              <div className="p-6">
-                <p className="text-xs text-[color:var(--color-mute)]">
-                  {carCategoryLabel[selectedCar.category]}
-                </p>
-                <p className="mt-1 text-lg font-semibold">
-                  {selectedCar.brand} {selectedCar.model}
-                </p>
-                <p className="mt-2 text-sm text-[color:var(--color-mute)]">
-                  {selectedCar.summary}
-                </p>
-              </div>
-            </div>
-            <div className="mt-8 flex items-center justify-between">
-              <BackButton onClick={() => goTo(2)} label="Bytt bil" />
-              <PrimaryButton onClick={() => goTo(4)}>Fortsett</PrimaryButton>
-            </div>
-          </div>
-        )}
-
-        {step === 4 && selectedCar && (
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              goTo(5);
+              goTo(4);
             }}
             className="mt-10"
           >
-            <h2 className="headline-md">Bekreft detaljer</h2>
+            <h2 className="headline-md">Kontaktinformasjon</h2>
             <p className="mt-2 text-[color:var(--color-mute)]">
-              Kontaktinformasjon til bekreftelse og levering.
+              Vi bruker dette til å bekrefte bestillingen og varsle om levering.
             </p>
             <div className="mt-8 grid gap-5 sm:grid-cols-2">
               <Field label="Fullt navn">
@@ -308,54 +396,34 @@ export function BookingFlow({
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+47 000 00 000"
-                  className="input"
-                />
-              </Field>
-              <Field label="Hentested">
-                <select
-                  value={locationSlug}
-                  onChange={(e) => setLocationSlug(e.target.value)}
-                  className="input"
-                >
-                  {locations.map((loc) => (
-                    <option key={loc.slug} value={loc.slug}>
-                      {loc.city}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Hentedato">
-                <input
-                  type="date"
-                  value={pickup}
-                  onChange={(e) => setPickup(e.target.value)}
-                  className="input"
-                />
-              </Field>
-              <Field label="Leveringsdato">
-                <input
-                  type="date"
-                  value={dropoff}
-                  onChange={(e) => setDropoff(e.target.value)}
+                  pattern="^(\\+47\\s?)?[0-9\\s]{8,}$"
                   className="input"
                 />
               </Field>
             </div>
             <p className="mt-6 text-xs text-[color:var(--color-mute)]">
-              Ved å fortsette godtar du Rento sine vilkår. Betaling trekkes ikke før bilen er hentet.
+              Ved å fortsette godtar du{" "}
+              <Link href="/vilkar" className="underline">
+                Rento sine vilkår
+              </Link>{" "}
+              og{" "}
+              <Link href="/personvern" className="underline">
+                personvernerklæringen
+              </Link>
+              .
             </p>
             <div className="mt-8 flex items-center justify-between gap-4">
-              <BackButton onClick={() => goTo(3)} />
+              <BackButton onClick={() => goTo(2)} />
               <PrimaryButton>Gå til betaling</PrimaryButton>
             </div>
           </form>
         )}
 
-        {step === 5 && selectedCar && (
+        {step === 4 && selectedCar && (
           <form onSubmit={handleConfirm} className="mt-10">
             <h2 className="headline-md">Betaling</h2>
             <p className="mt-2 text-[color:var(--color-mute)]">
-              Betal sikkert med kort via Stripe. Du blir sendt videre for å fullføre betalingen.
+              Betal sikkert. Beløpet reserveres ved booking og trekkes når bilen er hentet.
             </p>
             <div className="mt-8 rounded-2xl border border-[color:var(--color-line)] bg-white p-6">
               <dl className="space-y-3 text-sm">
@@ -374,6 +442,16 @@ export function BookingFlow({
               </dl>
             </div>
 
+            <div className="mt-6 flex items-center justify-center gap-5 text-xs text-[color:var(--color-mute)]">
+              <span>Vipps</span>
+              <span aria-hidden>·</span>
+              <span>Visa</span>
+              <span aria-hidden>·</span>
+              <span>Mastercard</span>
+              <span aria-hidden>·</span>
+              <span>256-bit kryptering</span>
+            </div>
+
             {error && (
               <p className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
                 {error}
@@ -381,27 +459,24 @@ export function BookingFlow({
             )}
 
             <div className="mt-8 flex items-center justify-between gap-4">
-              <BackButton onClick={() => goTo(4)} disabled={submitting} />
+              <BackButton onClick={() => goTo(3)} disabled={submitting} />
               <PrimaryButton disabled={submitting}>
                 {submitting ? "Sender …" : `Betal ${formatKr(total)}`}
               </PrimaryButton>
             </div>
-            <p className="mt-4 text-xs text-[color:var(--color-mute)]">
-              Sikker betaling levert av Stripe · Ingen skjulte gebyrer
-            </p>
           </form>
         )}
 
-        {(step === 3 || step === 4 || step === 5) && !selectedCar && (
+        {(step === 3 || step === 4) && !selectedCar && (
           <div className="mt-10 rounded-2xl border border-dashed border-[color:var(--color-line)] p-10 text-center text-[color:var(--color-mute)]">
             <p>Ingen bil valgt.</p>
             <div className="mt-4">
               <button
                 type="button"
-                onClick={() => goTo(2)}
+                onClick={() => goTo(1)}
                 className="rounded-full border border-[color:var(--color-line)] bg-white px-5 py-2 text-sm font-medium text-[color:var(--color-ink)] hover:border-[color:var(--color-ink)]"
               >
-                Gå til biler
+                Start fra begynnelsen
               </button>
             </div>
           </div>
@@ -498,41 +573,64 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function Stepper({ current }: { current: Step }) {
-  const steps: Step[] = [1, 2, 3, 4, 5, 6];
+  const steps: Step[] = [1, 2, 3, 4];
+  const percent = ((current - 1) / (steps.length - 1)) * 100;
+
   return (
-    <ol className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[color:var(--color-mute)]">
-      {steps.map((s, idx) => {
-        const isCurrent = s === current;
-        const isDone = s < current;
-        return (
-          <li key={s} className="flex items-center gap-3">
-            <span
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold ${
-                isCurrent
-                  ? "bg-[color:var(--color-ink)] text-white"
-                  : isDone
-                    ? "bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]"
-                    : "bg-[color:var(--color-fog)] text-[color:var(--color-mute)]"
-              }`}
-            >
-              {s}
-            </span>
-            <span
-              className={
-                isCurrent
-                  ? "font-medium text-[color:var(--color-ink)]"
-                  : "text-[color:var(--color-mute)]"
-              }
-            >
-              {stepLabels[s]}
-            </span>
-            {idx < steps.length - 1 && (
-              <span aria-hidden className="h-px w-4 bg-[color:var(--color-line)]" />
-            )}
-          </li>
-        );
-      })}
-    </ol>
+    <div>
+      {/* Mobile: progress bar + current label only */}
+      <div className="md:hidden">
+        <div className="flex items-baseline justify-between text-xs text-[color:var(--color-mute)]">
+          <span>
+            Steg {current} av {steps.length}
+          </span>
+          <span className="font-medium text-[color:var(--color-ink)]">
+            {stepLabels[current]}
+          </span>
+        </div>
+        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-[color:var(--color-fog)]">
+          <div
+            className="h-full rounded-full bg-[color:var(--color-ink)] transition-all"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Desktop: full stepper */}
+      <ol className="hidden items-center gap-3 text-xs text-[color:var(--color-mute)] md:flex">
+        {steps.map((s, idx) => {
+          const isCurrent = s === current;
+          const isDone = s < current;
+          return (
+            <li key={s} className="flex items-center gap-3">
+              <span
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold ${
+                  isCurrent
+                    ? "bg-[color:var(--color-ink)] text-white"
+                    : isDone
+                      ? "bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]"
+                      : "bg-[color:var(--color-fog)] text-[color:var(--color-mute)]"
+                }`}
+              >
+                {s}
+              </span>
+              <span
+                className={
+                  isCurrent
+                    ? "font-medium text-[color:var(--color-ink)]"
+                    : "text-[color:var(--color-mute)]"
+                }
+              >
+                {stepLabels[s]}
+              </span>
+              {idx < steps.length - 1 && (
+                <span aria-hidden className="h-px w-6 bg-[color:var(--color-line)]" />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 

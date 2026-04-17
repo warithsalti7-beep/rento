@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { carCategoryLabel, fuelLabel, transmissionLabel } from "@/lib/types";
 import { formatKrPerDay } from "@/lib/format";
@@ -79,6 +80,12 @@ export default async function AdminCarsPage() {
                 {formatKrPerDay(car.pricePerDay)} · {car.status}
               </p>
             </div>
+            <Link
+              href={`/admin/cars/${car.id}`}
+              className="rounded-full border border-[color:var(--color-line)] px-4 py-2 text-xs hover:border-[color:var(--color-ink)]"
+            >
+              Rediger
+            </Link>
             <form
               action={async () => {
                 "use server";
@@ -89,7 +96,7 @@ export default async function AdminCarsPage() {
               }}
             >
               <button className="rounded-full border border-[color:var(--color-line)] px-4 py-2 text-xs hover:border-[color:var(--color-ink)]">
-                {car.status === "ACTIVE" ? "Sett i vedlikehold" : "Sett aktiv"}
+                {car.status === "ACTIVE" ? "Vedlikehold" : "Sett aktiv"}
               </button>
             </form>
             <form

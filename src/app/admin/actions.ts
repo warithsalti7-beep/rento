@@ -71,6 +71,39 @@ export async function updateCarStatus(carId: string, status: CarStatus) {
   revalidatePath("/cars");
 }
 
+export async function updateCar(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Mangler id");
+  await prisma.car.update({
+    where: { id },
+    data: {
+      brand: String(formData.get("brand") ?? ""),
+      model: String(formData.get("model") ?? ""),
+      category: String(formData.get("category") ?? "KOMPAKT") as CarCategory,
+      fuel: String(formData.get("fuel") ?? "BENSIN") as FuelType,
+      transmission: String(formData.get("transmission") ?? "AUTOMAT") as Transmission,
+      seats: Number(formData.get("seats") ?? 5),
+      doors: Number(formData.get("doors") ?? 5),
+      luggage: Number(formData.get("luggage") ?? 2),
+      range: String(formData.get("range") ?? ""),
+      image: String(formData.get("image") ?? ""),
+      summary: String(formData.get("summary") ?? ""),
+      features: String(formData.get("features") ?? "")
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean),
+      pricePerDay: Number(formData.get("pricePerDay") ?? 0),
+      pricePerMonth: Number(formData.get("pricePerMonth") ?? 0),
+      locationId: String(formData.get("locationId") ?? "") || null,
+    },
+  });
+  revalidatePath("/admin/cars");
+  revalidatePath(`/admin/cars/${id}`);
+  revalidatePath("/cars");
+  revalidatePath("/");
+}
+
 export async function deleteCar(carId: string) {
   await requireAdmin();
   await prisma.car.update({

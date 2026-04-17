@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CarCard } from "@/components/CarCard";
 import { LinkButton } from "@/components/Button";
 import { SearchBar } from "@/components/SearchBar";
+import { TrustRow } from "@/components/TrustRow";
 import { getFeaturedCars } from "@/server/cars";
 import { getAllLocations } from "@/server/locations";
 import { getPricingTiers } from "@/server/pricing";
@@ -65,19 +66,16 @@ export default async function HomePage() {
           <div className="mt-10">
             <SearchBar locations={locations} />
           </div>
-          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[color:var(--color-mute)]">
-            <span className="inline-flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-accent)]" />
-              Gratis levering i Oslo og Bergen
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-accent)]" />
-              Forsikring og veihjelp inkludert
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-accent)]" />
-              Fri avbestilling inntil 48 t
-            </span>
+          <div className="mt-4">
+            <Link
+              href="/cars"
+              className="text-sm font-medium text-[color:var(--color-ink)] underline-offset-4 hover:underline"
+            >
+              Se alle biler →
+            </Link>
+          </div>
+          <div className="mt-6">
+            <TrustRow />
           </div>
         </div>
       </section>
@@ -115,7 +113,7 @@ export default async function HomePage() {
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div className="max-w-xl">
               <p className="eyebrow">Bilutvalg</p>
-              <h2 className="headline-lg mt-3">Populære biler nå</h2>
+              <h2 className="headline-lg mt-3">Utvalgte biler</h2>
             </div>
             <Link
               href="/cars"

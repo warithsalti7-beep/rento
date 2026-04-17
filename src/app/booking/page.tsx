@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { BookingFlow } from "./BookingFlow";
-import { getAllCars } from "@/server/cars";
 import { getAllLocations } from "@/server/locations";
 
 export const metadata: Metadata = {
@@ -32,12 +31,9 @@ export default async function BookingPage(props: BookingPageProps) {
   const stepNum =
     typeof stepParam === "string" ? Number.parseInt(stepParam, 10) : undefined;
   const initialStep =
-    stepNum && stepNum >= 1 && stepNum <= 6 ? (stepNum as 1 | 2 | 3 | 4 | 5 | 6) : undefined;
+    stepNum && stepNum >= 1 && stepNum <= 4 ? (stepNum as 1 | 2 | 3 | 4) : undefined;
 
-  const [cars, locations] = await Promise.all([
-    getAllCars(),
-    getAllLocations(),
-  ]);
+  const locations = await getAllLocations();
 
   return (
     <section>
@@ -47,7 +43,6 @@ export default async function BookingPage(props: BookingPageProps) {
       </div>
       <div className="container-x pb-20">
         <BookingFlow
-          cars={cars}
           locations={locations}
           initialCarSlug={initialCarSlug}
           initialLocationSlug={initialLocationSlug}

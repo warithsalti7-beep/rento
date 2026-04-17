@@ -4,7 +4,7 @@ import type { CarListItem } from "@/lib/types";
 
 export async function getAllCars(): Promise<CarListItem[]> {
   const rows = await prisma.car.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", listingStatus: "APPROVED" },
     orderBy: [{ pricePerDay: "asc" }, { brand: "asc" }],
   });
   return rows.map(toListItem);
@@ -19,9 +19,36 @@ export async function getCarBySlug(slug: string) {
 
 export async function getFeaturedCars(limit = 4): Promise<CarListItem[]> {
   const rows = await prisma.car.findMany({
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE", listingStatus: "APPROVED" },
     orderBy: { createdAt: "desc" },
     take: limit,
+  });
+  return rows.map(toListItem);
+}
+
+export async function getAvailableCars(
+  from: Date,
+  to: Date,
+  locationId?: string,
+): Promise<CarListItem[]> {
+  const rows = await prisma.car.findMany({
+    where: {
+      status: "ACTIVE",
+      listingStatus: "APPROVED",
+      ...(locationId ? { locationId } : {}),
+      bookings: {
+        none: {
+          status: { in: ["PENDING", "CONFIRMED", "PAID"] },
+          AND: [{ pickupAt: { lt: to } }, { dropoffAt: { gt: from } }],
+        },
+      },
+      availability: {
+        none: {
+          AND: [{ startsAt: { lt: to } }, { endsAt: { gt: from } }],
+        },
+      },
+    },
+    orderBy: [{ pricePerDay: "asc" }, { brand: "asc" }],
   });
   return rows.map(toListItem);
 }

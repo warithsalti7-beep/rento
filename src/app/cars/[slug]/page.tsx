@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LinkButton } from "@/components/Button";
+import { StickyMobileCTA } from "@/components/StickyMobileCTA";
+import { TrustRow } from "@/components/TrustRow";
 import { getCarBySlug } from "@/server/cars";
 import { carCategoryLabel, fuelLabel, transmissionLabel } from "@/lib/types";
 import { formatKrPerDay, formatKrPerMonth } from "@/lib/format";
@@ -35,7 +37,7 @@ export default async function CarDetailPage(props: CarDetailProps) {
   ];
 
   return (
-    <section>
+    <section className="pb-24 md:pb-0">
       <div className="container-x pt-10 md:pt-14">
         <nav aria-label="Brødsmuler" className="text-sm text-[color:var(--color-mute)]">
           <Link href="/cars" className="hover:text-[color:var(--color-ink)]">
@@ -100,6 +102,9 @@ export default async function CarDetailPage(props: CarDetailProps) {
               <p className="mt-3 text-center text-xs text-[color:var(--color-mute)]">
                 Fri avbestilling inntil 48 timer før henting
               </p>
+              <div className="mt-5 border-t border-[color:var(--color-line)] pt-4">
+                <TrustRow />
+              </div>
             </div>
           </aside>
         </div>
@@ -150,6 +155,11 @@ export default async function CarDetailPage(props: CarDetailProps) {
           </div>
         </div>
       </div>
+
+      <StickyMobileCTA
+        href={`/booking?car=${car.slug}`}
+        pricePerDay={car.pricePerDay}
+      />
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LinkButton } from "@/components/Button";
 import { Logo } from "@/components/Logo";
+import { MobileNav } from "@/components/MobileNav";
 import { auth, signOut } from "@/lib/auth";
 
 const nav = [
@@ -13,6 +14,7 @@ const nav = [
 export async function Header() {
   const session = await auth();
   const isAdmin = session?.user?.role === "ADMIN";
+  const isAuthed = Boolean(session?.user);
 
   return (
     <header className="sticky top-0 z-40 border-b border-[color:var(--color-line)] bg-white/85 backdrop-blur supports-[backdrop-filter]:bg-white/70">
@@ -43,11 +45,11 @@ export async function Header() {
           </ul>
         </nav>
         <div className="flex items-center gap-2">
-          {session?.user ? (
+          {isAuthed ? (
             <>
               <Link
                 href="/account"
-                className="hidden text-sm text-[color:var(--color-mute)] transition-colors hover:text-[color:var(--color-ink)] sm:block"
+                className="hidden text-sm text-[color:var(--color-mute)] transition-colors hover:text-[color:var(--color-ink)] md:block"
               >
                 Min side
               </Link>
@@ -59,7 +61,7 @@ export async function Header() {
               >
                 <button
                   type="submit"
-                  className="hidden text-sm text-[color:var(--color-mute)] transition-colors hover:text-[color:var(--color-ink)] sm:block"
+                  className="hidden text-sm text-[color:var(--color-mute)] transition-colors hover:text-[color:var(--color-ink)] md:block"
                 >
                   Logg ut
                 </button>
@@ -68,14 +70,15 @@ export async function Header() {
           ) : (
             <Link
               href="/auth/sign-in"
-              className="hidden text-sm text-[color:var(--color-mute)] transition-colors hover:text-[color:var(--color-ink)] sm:block"
+              className="hidden text-sm text-[color:var(--color-mute)] transition-colors hover:text-[color:var(--color-ink)] md:block"
             >
               Logg inn
             </Link>
           )}
-          <LinkButton href="/cars" size="md">
+          <LinkButton href="/cars" size="md" className="hidden md:inline-flex">
             Book nå
           </LinkButton>
+          <MobileNav isAdmin={isAdmin} isAuthed={isAuthed} />
         </div>
       </div>
     </header>
