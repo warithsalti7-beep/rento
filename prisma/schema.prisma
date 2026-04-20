@@ -1,0 +1,300 @@
+// Rento database schema
+// Neon (PostgreSQL) + Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum CarCategory {
+  KOMPAKT
+  MELLOMKLASSE
+  SUV
+  ELBIL
+  VAREBIL
+  PREMIUM
+}
+
+enum FuelType {
+  BENSIN
+  DIESEL
+  HYBRID
+  EL
+}
+
+enum Transmission {
+  AUTOMAT
+  MANUELL
+}
+
+enum CarStatus {
+  ACTIVE
+  MAINTENANCE
+  ARCHIVED
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum CarOwnerType {
+  FLEET
+  PRIVATE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  PAID
+  CANCELLED
+  COMPLETED
+}
+
+enum DocumentType {
+  FOERERKORT
+  ID_FRONT
+  ID_BACK
+  SELFIE
+}
+
+enum PaymentStatus {
+  UNPAID
+  AUTHORIZED
+  CAPTURED
+  REFUNDED
+  FAILED
+}
+
+enum UserRole {
+  CUSTOMER
+  OWNER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  phone         String?
+  role          UserRole  @default(CUSTOMER)
+  emailVerified DateTime?
+  image         String?
+
+  bookings      Booking[]
+  ownedCars     Car[]     @relation("CarOwner")
+  reviews       Review[]
+  accounts      Account[]
+  sessions      Session[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// NextAuth tables
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Location {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  city      String
+  address   String
+  hours     String
+  active    Boolean   @default(true)
+  bookings  Booking[] @relation("PickupLocation")
+  dropoffs  Booking[] @relation("DropoffLocation")
+  cars      Car[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Car {
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  brand          String
+  model          String
+  category       CarCategory
+  fuel           FuelType
+  transmission   Transmission
+  seats          Int
+  doors          Int
+  luggage        Int
+  range          String
+  image          String
+  gallery        String[]      @default([])
+  features       String[]      @default([])
+  summary        String
+  pricePerDay    Int
+  pricePerMonth  Int
+  status         CarStatus     @default(ACTIVE)
+  ownerType      CarOwnerType  @default(FLEET)
+  ownerId        String?
+  owner          User?         @relation("CarOwner", fields: [ownerId], references: [id])
+  locationId     String?
+  location       Location?     @relation(fields: [locationId], references: [id])
+
+  listingStatus      ListingStatus @default(APPROVED)
+  instantBook        Boolean       @default(true)
+  cancellationPolicy String?
+
+  bookings       Booking[]
+  availability   Availability[]
+  reviews        Review[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([category])
+  @@index([status])
+  @@index([listingStatus])
+}
+
+// Explicit blocked ranges (maintenance, owner holds). Bookings themselves also block availability.
+model Availability {
+  id        String   @id @default(cuid())
+  carId     String
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  startsAt  DateTime
+  endsAt    DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([carId, startsAt, endsAt])
+}
+
+model PricingTier {
+  id             String   @id @default(cuid())
+  slug           String   @unique // standard | plus | premium
+  name           String
+  tagline        String
+  priceFromMonth Int
+  highlight      Boolean  @default(false)
+  includes       String[] @default([])
+  sortOrder      Int      @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Booking {
+  id                 String        @id @default(cuid())
+  reference          String        @unique
+  userId             String?
+  user               User?         @relation(fields: [userId], references: [id])
+  carId              String
+  car                Car           @relation(fields: [carId], references: [id])
+  pickupLocationId   String
+  pickupLocation     Location      @relation("PickupLocation", fields: [pickupLocationId], references: [id])
+  dropoffLocationId  String?
+  dropoffLocation    Location?     @relation("DropoffLocation", fields: [dropoffLocationId], references: [id])
+  pickupAt           DateTime
+  dropoffAt          DateTime
+  days               Int
+  subtotal           Int
+  delivery           Int           @default(0)
+  total              Int
+  status             BookingStatus @default(PENDING)
+  payment            PaymentStatus @default(UNPAID)
+  stripeSessionId    String?
+  stripePaymentId    String?
+  vippsOrderId       String?
+  priceBreakdown     Json?
+  guestName          String?
+  guestEmail         String?
+  guestPhone         String?
+  notes              String?
+  documents          Document[]
+  events             BookingEvent[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([carId, pickupAt, dropoffAt])
+  @@index([status])
+}
+
+model Document {
+  id         String       @id @default(cuid())
+  bookingId  String
+  booking    Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  userId     String?
+  type       DocumentType
+  url        String
+  verified   Boolean      @default(false)
+  verifiedAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([bookingId])
+}
+
+model BookingEvent {
+  id        String   @id @default(cuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  type      String   // e.g. "STATUS_CHANGED", "PAYMENT_CAPTURED", "DOCUMENT_VERIFIED"
+  payload   Json?
+  actorId   String?  // userId of who triggered, if any
+  createdAt DateTime @default(now())
+
+  @@index([bookingId, createdAt])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  carId     String
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int
+  body      String?
+  createdAt DateTime @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  topic     String
+  body      String
+  handled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

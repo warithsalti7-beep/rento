@@ -2,18 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LinkButton } from "@/components/Button";
-import { cars, findCar } from "@/data/cars";
+import { StickyMobileCTA } from "@/components/StickyMobileCTA";
+import { TrustRow } from "@/components/TrustRow";
+import { getCarBySlug } from "@/server/cars";
+import { carCategoryLabel, fuelLabel, transmissionLabel } from "@/lib/types";
 import { formatKrPerDay, formatKrPerMonth } from "@/lib/format";
 
-export function generateStaticParams() {
-  return cars.map((car) => ({ slug: car.slug }));
-}
+type CarDetailProps = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata(
-  props: PageProps<"/cars/[slug]">,
+  props: CarDetailProps,
 ): Promise<Metadata> {
   const { slug } = await props.params;
-  const car = findCar(slug);
+  const car = await getCarBySlug(slug);
   if (!car) return { title: "Bil ikke funnet" };
   return {
     title: `${car.brand} ${car.model}`,
@@ -21,24 +22,22 @@ export async function generateMetadata(
   };
 }
 
-export default async function CarDetailPage(
-  props: PageProps<"/cars/[slug]">,
-) {
+export default async function CarDetailPage(props: CarDetailProps) {
   const { slug } = await props.params;
-  const car = findCar(slug);
+  const car = await getCarBySlug(slug);
   if (!car) notFound();
 
   const specs: Array<{ label: string; value: string }> = [
     { label: "Seter", value: `${car.seats}` },
     { label: "Dører", value: `${car.doors}` },
-    { label: "Girkasse", value: car.transmission },
-    { label: "Drivstoff", value: car.fuel },
+    { label: "Girkasse", value: transmissionLabel[car.transmission] },
+    { label: "Drivstoff", value: fuelLabel[car.fuel] },
     { label: "Bagasje", value: `${car.luggage} kofferter` },
     { label: "Rekkevidde", value: car.range },
   ];
 
   return (
-    <section>
+    <section className="pb-24 md:pb-0">
       <div className="container-x pt-10 md:pt-14">
         <nav aria-label="Brødsmuler" className="text-sm text-[color:var(--color-mute)]">
           <Link href="/cars" className="hover:text-[color:var(--color-ink)]">
@@ -62,7 +61,9 @@ export default async function CarDetailPage(
 
           <aside className="flex flex-col gap-8">
             <div>
-              <p className="text-sm text-[color:var(--color-mute)]">{car.category}</p>
+              <p className="text-sm text-[color:var(--color-mute)]">
+                {carCategoryLabel[car.category]}
+              </p>
               <h1 className="headline-lg mt-2">
                 {car.brand} {car.model}
               </h1>
@@ -101,6 +102,9 @@ export default async function CarDetailPage(
               <p className="mt-3 text-center text-xs text-[color:var(--color-mute)]">
                 Fri avbestilling inntil 48 timer før henting
               </p>
+              <div className="mt-5 border-t border-[color:var(--color-line)] pt-4">
+                <TrustRow />
+              </div>
             </div>
           </aside>
         </div>
@@ -151,6 +155,11 @@ export default async function CarDetailPage(
           </div>
         </div>
       </div>
+
+      <StickyMobileCTA
+        href={`/booking?car=${car.slug}`}
+        pricePerDay={car.pricePerDay}
+      />
     </section>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { locations } from "@/data/locations";
+import type { LocationListItem } from "@/lib/types";
 
 function todayPlus(days: number) {
   const date = new Date();
@@ -10,16 +10,17 @@ function todayPlus(days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-export function SearchBar() {
+export function SearchBar({ locations }: { locations: LocationListItem[] }) {
   const router = useRouter();
-  const [location, setLocation] = useState(locations[0].slug);
+  const fallback = locations[0]?.slug ?? "";
+  const [location, setLocation] = useState(fallback);
   const [pickup, setPickup] = useState(todayPlus(1));
   const [dropoff, setDropoff] = useState(todayPlus(4));
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const params = new URLSearchParams({ location, pickup, dropoff });
-    router.push(`/cars?${params.toString()}`);
+    router.push(`/booking?${params.toString()}&step=2`);
   }
 
   return (

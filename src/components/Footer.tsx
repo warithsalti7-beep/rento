@@ -23,7 +23,8 @@ const columns: Array<{ heading: string; links: Array<{ href: string; label: stri
     links: [
       { href: "/contact", label: "Kundeservice" },
       { href: "/how-it-works#faq", label: "Vanlige spørsmål" },
-      { href: "/terms", label: "Vilkår" },
+      { href: "/vilkar", label: "Vilkår" },
+      { href: "/personvern", label: "Personvern" },
     ],
   },
 ];
@@ -59,9 +60,26 @@ export function Footer() {
             </div>
           ))}
         </div>
-        <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[color:var(--color-line)] pt-6 text-xs text-[color:var(--color-mute)] md:flex-row md:items-center">
-          <p>© {new Date().getFullYear()} Rento AS · Org.nr. 000 000 000</p>
-          <p>rentobil.no · Laget i Norge</p>
+        <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-[color:var(--color-line)] pt-6 text-xs text-[color:var(--color-mute)] md:flex-row md:items-center">
+          <p>
+            © {new Date().getFullYear()} Rento AS
+            {process.env.NEXT_PUBLIC_ORG_NUMBER
+              ? ` · Org.nr. ${process.env.NEXT_PUBLIC_ORG_NUMBER}`
+              : ""}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>
+              {process.env.VIPPS_CLIENT_ID ? "Vipps · " : ""}Visa · Mastercard
+            </span>
+            {process.env.BANKID_ENABLED === "true" && (
+              <>
+                <span aria-hidden>·</span>
+                <span>BankID-verifisert</span>
+              </>
+            )}
+            <span aria-hidden>·</span>
+            <span>Laget i Norge</span>
+          </div>
         </div>
       </div>
     </footer>

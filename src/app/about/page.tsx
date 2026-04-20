@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { LinkButton } from "@/components/Button";
-import { locations } from "@/data/locations";
+import { getAllLocations } from "@/server/locations";
 
 export const metadata: Metadata = {
   title: "Om Rento",
   description: "Rento gjør bilutleie enkelt i Norge — og skal bli markedsplassen for leie.",
 };
+
+export const dynamic = "force-dynamic";
 
 const values = [
   {
@@ -22,7 +24,9 @@ const values = [
   },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const locations = await getAllLocations();
+
   return (
     <section>
       <div className="container-x pt-14 pb-6 md:pt-20">
@@ -94,7 +98,9 @@ export default function AboutPage() {
 
       <div className="container-x py-16">
         <p className="eyebrow">Lokasjoner</p>
-        <h2 className="headline-md mt-3">Vi finnes i seks byer</h2>
+        <h2 className="headline-md mt-3">
+          Vi finnes på {locations.length} hentesteder
+        </h2>
         <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {locations.map((loc) => (
             <li

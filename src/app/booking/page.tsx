@@ -1,15 +1,40 @@
 import type { Metadata } from "next";
 import { BookingFlow } from "./BookingFlow";
+import { getAllLocations } from "@/server/locations";
+import { isVippsEnabled } from "@/lib/vipps";
 
 export const metadata: Metadata = {
   title: "Bestill bil",
   description: "Fullfør bestillingen din i få steg.",
 };
 
-export default async function BookingPage(props: PageProps<"/booking">) {
+type BookingPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function BookingPage(props: BookingPageProps) {
   const params = await props.searchParams;
   const carParam = params?.car;
   const initialCarSlug = typeof carParam === "string" ? carParam : undefined;
+
+  const locationParam = params?.location;
+  const initialLocationSlug =
+    typeof locationParam === "string" ? locationParam : undefined;
+
+  const pickupParam = params?.pickup;
+  const initialPickup = typeof pickupParam === "string" ? pickupParam : undefined;
+
+  const dropoffParam = params?.dropoff;
+  const initialDropoff =
+    typeof dropoffParam === "string" ? dropoffParam : undefined;
+
+  const stepParam = params?.step;
+  const stepNum =
+    typeof stepParam === "string" ? Number.parseInt(stepParam, 10) : undefined;
+  const initialStep =
+    stepNum && stepNum >= 1 && stepNum <= 4 ? (stepNum as 1 | 2 | 3 | 4) : undefined;
+
+  const locations = await getAllLocations();
 
   return (
     <section>
@@ -18,7 +43,15 @@ export default async function BookingPage(props: PageProps<"/booking">) {
         <h1 className="headline-lg mt-3">Book din bil</h1>
       </div>
       <div className="container-x pb-20">
-        <BookingFlow initialCarSlug={initialCarSlug} />
+        <BookingFlow
+          locations={locations}
+          initialCarSlug={initialCarSlug}
+          initialLocationSlug={initialLocationSlug}
+          initialPickup={initialPickup}
+          initialDropoff={initialDropoff}
+          initialStep={initialStep}
+          paymentProvider={isVippsEnabled() ? "vipps" : "stripe"}
+        />
       </div>
     </section>
   );

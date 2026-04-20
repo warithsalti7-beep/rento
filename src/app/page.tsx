@@ -2,9 +2,13 @@ import Link from "next/link";
 import { CarCard } from "@/components/CarCard";
 import { LinkButton } from "@/components/Button";
 import { SearchBar } from "@/components/SearchBar";
-import { cars } from "@/data/cars";
-import { pricingTiers } from "@/data/pricing";
+import { TrustRow } from "@/components/TrustRow";
+import { getFeaturedCars } from "@/server/cars";
+import { getAllLocations } from "@/server/locations";
+import { getPricingTiers } from "@/server/pricing";
 import { formatKrPerMonth } from "@/lib/format";
+
+export const dynamic = "force-dynamic";
 
 const steps = [
   {
@@ -43,36 +47,35 @@ const trust = [
   },
 ];
 
-export default function HomePage() {
-  const featured = cars.slice(0, 4);
+export default async function HomePage() {
+  const [featured, locations, pricingTiers] = await Promise.all([
+    getFeaturedCars(4),
+    getAllLocations(),
+    getPricingTiers(),
+  ]);
 
   return (
     <>
       <section className="relative overflow-hidden">
         <div className="container-x pt-14 pb-10 md:pt-20 md:pb-16">
           <p className="eyebrow">Bilutleie i Norge</p>
-          <h1 className="headline-xl mt-4 max-w-3xl">
-            Lei bil. Enkelt.
-          </h1>
+          <h1 className="headline-xl mt-4 max-w-3xl">Lei bil. Enkelt.</h1>
           <p className="mt-5 max-w-xl text-lg text-[color:var(--color-mute)] md:text-xl">
             Book på sekunder. Vi leverer til deg.
           </p>
           <div className="mt-10">
-            <SearchBar />
+            <SearchBar locations={locations} />
           </div>
-          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[color:var(--color-mute)]">
-            <span className="inline-flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-accent)]" />
-              Gratis levering i Oslo og Bergen
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-accent)]" />
-              Forsikring og veihjelp inkludert
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-accent)]" />
-              Fri avbestilling inntil 48 t
-            </span>
+          <div className="mt-4">
+            <Link
+              href="/cars"
+              className="text-sm font-medium text-[color:var(--color-ink)] underline-offset-4 hover:underline"
+            >
+              Se alle biler →
+            </Link>
+          </div>
+          <div className="mt-6">
+            <TrustRow />
           </div>
         </div>
       </section>
@@ -97,9 +100,7 @@ export default function HomePage() {
                 <span className="text-sm font-medium text-[color:var(--color-mute)]">
                   {step.number}
                 </span>
-                <h3 className="mt-4 text-xl font-semibold tracking-tight">
-                  {step.title}
-                </h3>
+                <h3 className="mt-4 text-xl font-semibold tracking-tight">{step.title}</h3>
                 <p className="mt-3 text-[color:var(--color-mute)]">{step.body}</p>
               </li>
             ))}
@@ -112,7 +113,7 @@ export default function HomePage() {
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div className="max-w-xl">
               <p className="eyebrow">Bilutvalg</p>
-              <h2 className="headline-lg mt-3">Populære biler nå</h2>
+              <h2 className="headline-lg mt-3">Utvalgte biler</h2>
             </div>
             <Link
               href="/cars"
@@ -152,22 +153,14 @@ export default function HomePage() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold tracking-tight">
-                    {tier.name}
-                  </h3>
+                  <h3 className="text-xl font-semibold tracking-tight">{tier.name}</h3>
                   {tier.highlight && (
                     <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
                       Mest valgt
                     </span>
                   )}
                 </div>
-                <p
-                  className={
-                    tier.highlight
-                      ? "text-sm text-white/70"
-                      : "text-sm text-[color:var(--color-mute)]"
-                  }
-                >
+                <p className={tier.highlight ? "text-sm text-white/70" : "text-sm text-[color:var(--color-mute)]"}>
                   {tier.tagline}
                 </p>
                 <div>
@@ -194,9 +187,7 @@ export default function HomePage() {
                       <span
                         aria-hidden
                         className={`mt-1 inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full ${
-                          tier.highlight
-                            ? "bg-white"
-                            : "bg-[color:var(--color-accent)]"
+                          tier.highlight ? "bg-white" : "bg-[color:var(--color-accent)]"
                         }`}
                       />
                       <span>{item}</span>
@@ -204,7 +195,7 @@ export default function HomePage() {
                   ))}
                 </ul>
                 <LinkButton
-                  href={`/pricing?tier=${tier.id}`}
+                  href={`/pricing?tier=${tier.slug}`}
                   variant={tier.highlight ? "secondary" : "primary"}
                   className="mt-auto"
                 >
@@ -245,7 +236,12 @@ export default function HomePage() {
             <LinkButton href="/cars" variant="secondary" size="lg">
               Se biler
             </LinkButton>
-            <LinkButton href="/how-it-works" variant="ghost" size="lg" className="text-white hover:bg-white/10">
+            <LinkButton
+              href="/how-it-works"
+              variant="ghost"
+              size="lg"
+              className="text-white hover:bg-white/10"
+            >
               Slik fungerer det
             </LinkButton>
           </div>

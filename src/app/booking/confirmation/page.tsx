@@ -1,54 +1,80 @@
 import type { Metadata } from "next";
 import { LinkButton } from "@/components/Button";
-import { findCar } from "@/data/cars";
-import { locations } from "@/data/locations";
-import { formatKr } from "@/lib/format";
+import { getBookingByReference } from "@/server/bookings";
+import { formatDate, formatKr } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Bekreftelse",
 };
 
-function bookingReference() {
-  return `RE-${Math.random().toString(36).slice(2, 7).toUpperCase()}${Math.floor(Math.random() * 90 + 10)}`;
-}
+type ConfirmationProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default async function ConfirmationPage(
-  props: PageProps<"/booking/confirmation">,
-) {
+export default async function ConfirmationPage(props: ConfirmationProps) {
   const params = await props.searchParams;
-  const carSlug = typeof params?.car === "string" ? params.car : undefined;
-  const locationSlug = typeof params?.location === "string" ? params.location : undefined;
-  const pickup = typeof params?.pickup === "string" ? params.pickup : "";
-  const dropoff = typeof params?.dropoff === "string" ? params.dropoff : "";
-  const days = typeof params?.days === "string" ? params.days : "";
-  const total = typeof params?.total === "string" ? Number(params.total) : 0;
-  const name = typeof params?.name === "string" ? params.name : "";
+  const reference =
+    typeof params?.reference === "string" ? params.reference : undefined;
 
-  const car = carSlug ? findCar(carSlug) : undefined;
-  const loc = locations.find((l) => l.slug === locationSlug);
-  const reference = bookingReference();
+  const booking = reference ? await getBookingByReference(reference) : null;
+  const paid = booking?.status === "PAID" || booking?.status === "CONFIRMED";
+  const pending = booking?.status === "PENDING";
+
+  const heading = paid
+    ? "Bestilling bekreftet"
+    : pending
+      ? "Bestilling mottatt"
+      : "Bestilling bekreftet";
+  const subhead = paid
+    ? "Vi har sendt bekreftelsen på e-post."
+    : pending
+      ? "Vi bekrefter betalingen innen et par minutter og sender deg en e-post så snart den er på plass."
+      : "Vi har sendt bekreftelsen på e-post.";
 
   return (
     <section>
       <div className="container-x pt-14 pb-6 md:pt-20">
         <div className="mx-auto max-w-2xl">
           <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--color-accent-soft)] text-[color:var(--color-accent)]">
-            ✓
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+              <path d="M4 10.5l4 4 8-9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </span>
-          <h1 className="headline-lg mt-5">Bestilling bekreftet</h1>
+          <h1 className="headline-lg mt-5">{heading}</h1>
           <p className="mt-3 text-[color:var(--color-mute)]">
-            Takk{name ? `, ${name.split(" ")[0]}` : ""}. Vi har sendt bekreftelsen på e-post.
+            Takk
+            {booking?.guestName ? `, ${booking.guestName.split(" ")[0]}` : ""}.
+            {" "}
+            {subhead}
           </p>
 
-          <dl className="mt-10 divide-y divide-[color:var(--color-line)] rounded-2xl border border-[color:var(--color-line)] bg-white">
-            <Row label="Bestillingsnummer" value={reference} />
-            {car && <Row label="Bil" value={`${car.brand} ${car.model}`} />}
-            {loc && <Row label="Hentested" value={loc.city} />}
-            {pickup && <Row label="Hentedato" value={pickup} />}
-            {dropoff && <Row label="Levering" value={dropoff} />}
-            {days && <Row label="Varighet" value={`${days} ${days === "1" ? "dag" : "dager"}`} />}
-            {total > 0 && <Row label="Totalt" value={formatKr(total)} strong />}
-          </dl>
+          {booking ? (
+            <dl className="mt-10 divide-y divide-[color:var(--color-line)] rounded-2xl border border-[color:var(--color-line)] bg-white">
+              <Row label="Bestillingsnummer" value={booking.reference} />
+              <Row
+                label="Bil"
+                value={`${booking.car.brand} ${booking.car.model}`}
+              />
+              <Row label="Hentested" value={booking.pickupLocation.city} />
+              <Row
+                label="Hentedato"
+                value={formatDate(booking.pickupAt)}
+              />
+              <Row
+                label="Levering"
+                value={formatDate(booking.dropoffAt)}
+              />
+              <Row
+                label="Varighet"
+                value={`${booking.days} ${booking.days === 1 ? "dag" : "dager"}`}
+              />
+              <Row label="Totalt" value={formatKr(booking.total)} strong />
+            </dl>
+          ) : (
+            <p className="mt-10 rounded-2xl border border-dashed border-[color:var(--color-line)] p-6 text-sm text-[color:var(--color-mute)]">
+              Finner ingen bestilling med denne referansen.
+            </p>
+          )}
 
           <div className="mt-10 rounded-2xl bg-[color:var(--color-fog)] p-6 text-sm text-[color:var(--color-mute)]">
             <p>Neste steg:</p>
